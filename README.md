@@ -13,3 +13,7 @@ This simple application works, but with very old-style monolithic codebase, so d
 
   - easier to work with
   - more maintainable
+
+### 3. Documentation of Recommendations
+
+Kindly refer to CODEOPTI_DOCS.txt for further details of the code optimization made for the technical assessment.
