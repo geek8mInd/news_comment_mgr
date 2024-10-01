@@ -1,0 +1,100 @@
+Documentation of Code Optimizations:
+
+1. Use of namespaces to avoid naming collision or conflict between classes which helps 
+to load classes on a more structured way. This has been done through declaring "autoload" 
+property on composer.json file requiring to adhere PS4 AutoLoader specifications when it 
+comes to filepath. All files under /class and /utils were structured under /src folder 
+and declaring "MyApp" as handler name for these components.
+
+Also, this address a better coding style that instead of using require_once() expression,
+the "use" keyword is in place to load the related and required classes.
+
+2. Under /utils, I optimized the code by creating a base class 
+(referred to as "InstanceManager.php") that contains the publicly declared static function of 
+getInstance() which were both used by CommentManager and NewsManager. 
+This upholds the DRY principle stating Don't Repeat Yourself allowing 
+the extending subclass to inherit the function without being repeatedly written on 
+CommentManager and NewsManager class.
+
+Also, creating this base class will uphold Open/Closed principle whereas a class should be 
+open for extension but closed for modification thus allowing to depend on abstraction 
+or simply programming by contracts. If in case, in the future, the CommentManager or NewsManager 
+classes might be needing specific logic or processes to include on function getInstance()
+they were decoupled to define their own signature without affecting other extending classes 
+of "InstanceManager.php"
+
+Also, creating this base class (i.e. "InstanceManager.php") will uphold 
+Dependency Inversion principle which states that high level module and low level module 
+depends on abstraction. If in case in the future we might need to strictly evaluate 
+the object type requiring to pass in a valid InstanceManager object type 
+then we could freely do so by injecting an argument casting with a sample code like this:
+
+     public function getTotalRows(InstanceManager $instance) {
+           //some specific code logics here...
+     }
+
+Having it written like this allows us to clearly understand that since 
+both CommentManager and NewsManager is also an object type of InstanceManager, 
+therefore the function will not throw an exception or an error as long as it satisfy 
+that the object type of $instance is of InstanceManager.
+
+3. On CommentManager, I've also optimized the function listComments($news_id = 0) to:
+    - define a default value of $news_id to 0 to handle the possibility that $news_id may not be defined whenever listComments() function is called;
+    - secondly, I've added additional validation that $news_id should be of type integer; although on PHP 8.0 object, int casting type is already supported. however for older versions, we need to support backward compatability; with this additional if statement (see code snippet below), this will ensure that the SQL query can only be executed if it satisfies that $news_id is of integer type, otherwise returning an empty array.
+
+               if (!is_int($news_id)) return $comments;
+
+This kind of validation is commonly overlooked especially when passing unnamed parameters 
+or not using parameterized query; this kind of practice will help to prevent SQL injection 
+attack that might be encountered when executing unsanitized queries;
+
+4. Next, created a "BaseModel.php" which is the base class primarily purpose is to 
+integrate __set() and __get() magic methods (which were introduced on PHP >5.0)
+I've observed that /class/Comment.php and /class/News.php were both using set() and get()
+and to avoid such repetition I've decided to create a base class and 
+let the subclass (e.g. News.php) extend "BaseModel.php" 
+to inherit the setters and getters functions. 
+
+Also, this presents the codebase to be more neat and clean since each model class 
+would only need to define the property (e.g. id, createdAt, etc...) 
+and let the super class (in this case, BaseModel.php if used with the "extends" keyword) 
+handle the setters and getters logic.
+
+But, I would say there must be a precaution on using these magic methods 
+because at some point it is safe to assume that a property is existing or defined in the class.
+So, I would recommend that using these magic methods must be taken with good sense of caution 
+or mindful decision on developing the architecture.
+
+5. With the use of magic methods, as explained in #4, the initialization of property
+when instantiating News object (i.e. $news = new News()) through the "new" keyword 
+could be simply called by arrow notation (i.e. ->) instead of explicitly calling 
+the specific setter function (e.g. ->setTitle($row['title']) which could simply 
+be called like this: $n->title = $row['title']; In doing so, this means that the code 
+is much cleaner and swifter.
+
+6. On index.php, I've altered the first foreach statement 
+to create a variable that will hold the NewsManager instance;
+instead of re-creating a NewsManager instance while doing the foreach loop 
+which allows us to at least optimally decrease execution time.
+
+7. Also, on index.php since we're using magic methods of (setters and getters) we need to 
+alter how property were called under the variable of $n which holds the News object;
+instead of explicitly calling the get (e.g. $news->getTitle()) we just need 
+to invoke the arrow notation and call the property directly like this: $news->title) 
+
+Note: The same logic is also integrated when calling the CommentManager properties.
+
+8. Also, on index.php since I've optimized the function listComments() on CommentManager 
+by actually redefining the function to accept $news_id param; 
+In which case, if the $news_id is not defined that means the function will return all comments; 
+however, when $news_id is defined, then the query will filter only the comments 
+specifically related to the news.
+
+This also means removing the unnecessary if statement (see code snippet below) 
+since we can filter the comments of the news by passing the $news->id; 
+at this point, we knew exactly that the function will only return related comments of the news.
+Not only that, we also achieve to make the code shorter and optimally lessen execution time;
+
+     if ($comment->getNewsId() == $news->getId()) {
+          //some specific code logic goes here...
+     }
